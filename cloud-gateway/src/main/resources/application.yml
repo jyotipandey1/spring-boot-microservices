@@ -1,0 +1,84 @@
+server:
+  port: 9191
+
+spring:
+  application:
+    name: API-GATEWAY
+  cloud:
+    gateway:
+      routes:
+        - id: USER-SERVICE
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/users/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: USER-SERVICE
+                fallbackuri: forward:/userServiceFallback
+        - id: DEPARTMENT-SERVICE
+          uri: lb://DEPARTMENT-SERVICE
+          predicates:
+            - Path=/departments/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: DEPARTMENT-SERVICE
+                fallbackuri: forward:/departmentServiceFallback
+
+resilence4j.circuitbreaker:
+  configs:
+    default:
+      registerHealthIndicator: true
+      slidingWindowSize: 10
+      minimumNumberOfCalls: 5
+      permittedNumberOfCallsInHalfOpenState: 3
+      automaticTransitionFromOpenToHalfOpenEnabled: true
+      waitDurationInOpenState: 5s
+      failureRateThreshold: 50
+      slidingWindowType: COUNT_BASED
+      recordExceptions:
+        - java.util.concurrent.TimeoutException
+        - java.io.IOException
+        - java.net.ConnectException
+        - org.springframework.cloud.gateway.support.NotFoundException
+  instances:
+    userService:
+      baseConfig: default
+    departmentService:
+      baseConfig: default
+
+resilience4j.timelimiter:
+  configs:
+    default:
+      cancelRunningFuture: false
+      timeoutDuration: 2s
+  instances:
+    userService:
+      baseConfig: default
+    departmentService:
+      baseConfig: default
+
+management:
+  security:
+    enabled: false
+  endpoints:
+    health:
+      sensitive: false
+    security:
+      enabled: false
+
+resilience4j.ratelimiter:
+  configs:
+    default:
+      registerHealthIndicator: true
+  instances:
+    userService:
+      baseConfig: default
+    departmentService:
+      baseConfig: default
+
+management.endpoints.web.exposure.include: '*'
+management.endpoint.health.show-details: always
+management.health.circuitbreakers.enabled: true
+management.health.ratelimiters.enabled: true
